@@ -1,0 +1,10 @@
+[package]
+name = "Rust-Bot"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+env = "1.0.1"
+reqwest = { version = "0.13.4", features = ["json", "query"] }
+serde = { version = "1.0.229", features = ["derive"] }
+tokio = { version = "1.53.1", features = ["full"] }
