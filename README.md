@@ -43,6 +43,6 @@ Search for Direct Repository Lookup
 cargo run -- microsoft/vscode
 ```
 
-Current Status
+## Current Status
 
 Version 1.0 : repository search and resolution engine implemented
