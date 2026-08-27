@@ -1,7 +1,8 @@
 [package]
 name = "rust_bot"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
+description = "An intelligent GitHub repository resolver built in Rust with search, ranking, fuzzy matching, and confidence scoring."
 
 [dependencies]
 env = "1.0.1"
