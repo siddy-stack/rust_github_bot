@@ -162,6 +162,9 @@ pub fn expand_query(query: &str) -> Vec<String> {
 
 pub fn score_repository(repo: &Repository, query: &str) -> (u32, MatchReason) {
     let query = normalize_text(query);
+    if query.is_empty() {
+        return (0, MatchReason::Fuzzy);
+    }
     let name = normalize_text(&repo.name);
     let full_name = normalize_text(&repo.full_name);
 
@@ -207,17 +210,20 @@ pub fn score_repository(repo: &Repository, query: &str) -> (u32, MatchReason) {
     }
 
     // Token matching
+    //
+    // Token matching should use actual word relationships.
+    // Fuzzy similarity is handled separately below.
     let query_words: Vec<&str> = query.split_whitespace().collect();
 
     if !query_words.is_empty() {
         let matched_words = query_words
             .iter()
             .filter(|word| {
-                name.split_whitespace().any(|name_word| {
-                    name_word.contains(**word) || similarity(name_word, word) >= 750
-                }) || description.split_whitespace().any(|description_word| {
-                    description_word.contains(**word) || similarity(description_word, word) >= 750
-                })
+                name.split_whitespace()
+                    .any(|name_word| name_word == **word || name_word.starts_with(**word))
+                    || description.split_whitespace().any(|description_word| {
+                        description_word == **word || description_word.starts_with(**word)
+                    })
             })
             .count();
 
@@ -237,7 +243,7 @@ pub fn score_repository(repo: &Repository, query: &str) -> (u32, MatchReason) {
     // Fuzzy repository-name matching
     let fuzzy_score = similarity(&name, &query);
 
-    if fuzzy_score >= 800 {
+    if fuzzy_score >= 600 {
         return (600, MatchReason::Fuzzy);
     }
 
@@ -315,7 +321,6 @@ pub fn resolve_repository<'a>(
         .iter()
         .map(|repo| {
             let (score, reason) = score_repository(repo, query);
-
             let ranking = ranking_score(repo, query);
 
             (repo, score, reason, ranking)
@@ -335,7 +340,10 @@ pub fn resolve_repository<'a>(
 
     let confidence = calculate_confidence(best.1, second_score);
 
-    // Exact matches are trusted only if they are unique.
+    // --------------------------------------------------------
+    // Exact matches
+    // --------------------------------------------------------
+
     if best.1 >= 4000 && best.1 > second_score {
         return Some(MatchResult {
             repository: best.0,
@@ -345,7 +353,10 @@ pub fn resolve_repository<'a>(
         });
     }
 
-    // Strong semantic match.
+    // --------------------------------------------------------
+    // Strong semantic matches
+    // --------------------------------------------------------
+
     if best.1 >= 1000 {
         let ranking_gap = best
             .3
@@ -359,6 +370,19 @@ pub fn resolve_repository<'a>(
                 reason: best.2,
             });
         }
+    }
+
+    // --------------------------------------------------------
+    // Strong fuzzy matches
+    // --------------------------------------------------------
+
+    if matches!(best.2, MatchReason::Fuzzy) && best.1 >= 600 && best.1 > second_score {
+        return Some(MatchResult {
+            repository: best.0,
+            score: best.1,
+            confidence,
+            reason: best.2,
+        });
     }
 
     None
