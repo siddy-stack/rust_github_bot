@@ -127,7 +127,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .filter(|(_, score, _)| *score > 0)
                 .collect();
 
-            candidates.sort_by(|a, b| b.1.cmp(&a.1));
+            candidates.sort_by_key(|candidate| std::cmp::Reverse(candidate.1));
 
             for (index, (repo, score, reason)) in candidates.iter().take(5).enumerate() {
                 println!(
