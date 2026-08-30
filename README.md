@@ -255,6 +255,8 @@ Version 0.2 introduces:
 - Ranking and confidence scoring
 - Ambiguity handling
 - Integration test coverage
+- Security audit
+- Better resolver behavior
 
 ## License
 
