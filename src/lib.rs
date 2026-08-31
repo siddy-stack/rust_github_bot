@@ -1,5 +1,17 @@
 use serde::Deserialize;
 
+const EXACT_REPOSITORY_SCORE: u32 = 5000;
+const EXACT_NAME_SCORE: u32 = 4000;
+const MULTIWORD_NAME_SCORE: u32 = 3000;
+const ABBREVIATION_SCORE: u32 = 3500;
+const PREFIX_SCORE: u32 = 2500;
+const CONTAINS_SCORE: u32 = 1500;
+const DESCRIPTION_PHRASE_SCORE: u32 = 1200;
+const DESCRIPTION_ABBREVIATION_SCORE: u32 = 1100;
+const TOKEN_MATCH_SCORE: u32 = 1000;
+const PARTIAL_TOKEN_SCORE: u32 = 700;
+const FUZZY_SCORE: u32 = 600;
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct Repository {
     pub name: String,
@@ -172,41 +184,41 @@ pub fn score_repository(repo: &Repository, query: &str) -> (u32, MatchReason) {
 
     // Exact owner/repository match
     if full_name == query {
-        return (5000, MatchReason::ExactRepository);
+        return (EXACT_REPOSITORY_SCORE, MatchReason::ExactRepository);
     }
 
     // Exact repository name
     if name == query {
         if query.split_whitespace().count() == 1 {
-            return (4000, MatchReason::ExactName);
+            return (EXACT_NAME_SCORE, MatchReason::ExactName);
         }
 
-        return (3000, MatchReason::ExactName);
+        return (MULTIWORD_NAME_SCORE, MatchReason::ExactName);
     }
 
     // Abbreviation match
     if abbreviation_name_matches(&query, &name) {
-        return (3500, MatchReason::Abbreviation);
+        return (ABBREVIATION_SCORE, MatchReason::Abbreviation);
     }
 
     // Repository name starts with query
     if name.starts_with(&query) {
-        return (2500, MatchReason::Prefix);
+        return (PREFIX_SCORE, MatchReason::Prefix);
     }
 
     // Repository name contains query
     if name.contains(&query) {
-        return (1500, MatchReason::Contains);
+        return (CONTAINS_SCORE, MatchReason::Contains);
     }
 
     // Exact phrase appears in description
     if description.contains(&query) {
-        return (1200, MatchReason::DescriptionPhrase);
+        return (DESCRIPTION_PHRASE_SCORE, MatchReason::DescriptionPhrase);
     }
 
     // Abbreviation in description
     if abbreviation_matches(&query, &description) {
-        return (1100, MatchReason::Abbreviation);
+        return (DESCRIPTION_ABBREVIATION_SCORE, MatchReason::Abbreviation);
     }
 
     // Token matching
@@ -231,11 +243,11 @@ pub fn score_repository(repo: &Repository, query: &str) -> (u32, MatchReason) {
             let percentage = (matched_words * 100) / query_words.len();
 
             if percentage == 100 {
-                return (1000, MatchReason::TokenMatch);
+                return (TOKEN_MATCH_SCORE, MatchReason::TokenMatch);
             }
 
             if percentage >= 50 {
-                return (700, MatchReason::TokenMatch);
+                return (PARTIAL_TOKEN_SCORE, MatchReason::TokenMatch);
             }
         }
     }
@@ -243,8 +255,8 @@ pub fn score_repository(repo: &Repository, query: &str) -> (u32, MatchReason) {
     // Fuzzy repository-name matching
     let fuzzy_score = similarity(&name, &query);
 
-    if fuzzy_score >= 600 {
-        return (600, MatchReason::Fuzzy);
+    if fuzzy_score >= FUZZY_SCORE {
+        return (FUZZY_SCORE, MatchReason::Fuzzy);
     }
 
     (0, MatchReason::Fuzzy)
