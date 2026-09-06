@@ -1,5 +1,17 @@
 use serde::Deserialize;
 
+const CONFIDENCE_EXACT_REPOSITORY: u32 = 99;
+const CONFIDENCE_EXACT_NAME: u32 = 97;
+const CONFIDENCE_ABBREVIATION: u32 = 92;
+const CONFIDENCE_MULTIWORD_NAME: u32 = 87;
+const CONFIDENCE_PREFIX: u32 = 78;
+const CONFIDENCE_CONTAINS: u32 = 65;
+const CONFIDENCE_TOKEN_MATCH: u32 = 55;
+const CONFIDENCE_PARTIAL_TOKEN: u32 = 45;
+const CONFIDENCE_FUZZY: u32 = 35;
+const CONFIDENCE_WEAK: u32 = 20;
+const CONFIDENCE_UNIQUENESS_BONUS: f64 = 5.0;
+
 const EXACT_REPOSITORY_SCORE: u32 = 5000;
 const EXACT_NAME_SCORE: u32 = 4000;
 const MULTIWORD_NAME_SCORE: u32 = 3000;
@@ -316,19 +328,19 @@ fn calculate_confidence(best_score: u32, second_score: u32) -> u32 {
     };
 
     let base = match best_score {
-        5000.. => 99,
-        4000..=4999 => 97,
-        3500..=3999 => 92,
-        3000..=3499 => 87,
-        2500..=2999 => 78,
-        1500..=2499 => 65,
-        1000..=1499 => 55,
-        700..=999 => 45,
-        600..=699 => 35,
-        _ => 20,
+        5000.. => CONFIDENCE_EXACT_REPOSITORY,
+        4000..=4999 => CONFIDENCE_EXACT_NAME,
+        3500..=3999 => CONFIDENCE_ABBREVIATION,
+        3000..=3499 => CONFIDENCE_MULTIWORD_NAME,
+        2500..=2999 => CONFIDENCE_PREFIX,
+        1500..=2499 => CONFIDENCE_CONTAINS,
+        1000..=1499 => CONFIDENCE_TOKEN_MATCH,
+        700..=999 => CONFIDENCE_PARTIAL_TOKEN,
+        600..=699 => CONFIDENCE_FUZZY,
+        _ => CONFIDENCE_WEAK,
     };
 
-    let uniqueness_bonus = (gap_ratio * 5.0) as u32;
+    let uniqueness_bonus = (gap_ratio * CONFIDENCE_UNIQUENESS_BONUS) as u32;
 
     (base + uniqueness_bonus).min(100)
 }
