@@ -276,7 +276,7 @@ pub fn score_repository(repo: &Repository, query: &str) -> (u32, MatchReason) {
     let fuzzy_score = similarity(&name, &query);
 
     if fuzzy_score >= FUZZY_SCORE {
-        return (FUZZY_SCORE, MatchReason::Fuzzy);
+        return (fuzzy_score, MatchReason::Fuzzy);
     }
 
     (0, MatchReason::Fuzzy)
