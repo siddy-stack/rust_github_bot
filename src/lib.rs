@@ -11,6 +11,8 @@ const DESCRIPTION_ABBREVIATION_SCORE: u32 = 1100;
 const TOKEN_MATCH_SCORE: u32 = 1000;
 const PARTIAL_TOKEN_SCORE: u32 = 700;
 const FUZZY_SCORE: u32 = 600;
+const EXACT_MATCH_THRESHOLD: u32 = 4000;
+const SEMANTIC_MATCH_THRESHOLD: u32 = 1000;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Repository {
@@ -356,7 +358,7 @@ pub fn resolve_repository<'a>(
     // Exact matches
     // --------------------------------------------------------
 
-    if best.1 >= 4000 && best.1 > second_score {
+    if best.1 >= EXACT_MATCH_THRESHOLD && best.1 > second_score {
         return Some(MatchResult {
             repository: best.0,
             score: best.1,
@@ -369,7 +371,7 @@ pub fn resolve_repository<'a>(
     // Strong semantic matches
     // --------------------------------------------------------
 
-    if best.1 >= 1000 {
+    if best.1 >= SEMANTIC_MATCH_THRESHOLD {
         let ranking_gap = best
             .3
             .saturating_sub(scored.get(1).map(|result| result.3).unwrap_or(0));
@@ -388,7 +390,7 @@ pub fn resolve_repository<'a>(
     // Strong fuzzy matches
     // --------------------------------------------------------
 
-    if matches!(best.2, MatchReason::Fuzzy) && best.1 >= 600 && best.1 > second_score {
+    if matches!(best.2, MatchReason::Fuzzy) && best.1 >= FUZZY_SCORE && best.1 > second_score {
         return Some(MatchResult {
             repository: best.0,
             score: best.1,
