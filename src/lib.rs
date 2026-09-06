@@ -13,6 +13,12 @@ const PARTIAL_TOKEN_SCORE: u32 = 700;
 const FUZZY_SCORE: u32 = 600;
 const EXACT_MATCH_THRESHOLD: u32 = 4000;
 const SEMANTIC_MATCH_THRESHOLD: u32 = 1000;
+const EXACT_NAME_RANKING_BONUS: u64 = 100_000;
+const CONTAINS_NAME_RANKING_BONUS: u64 = 50_000;
+const ABBREVIATION_RANKING_BONUS: u64 = 75_000;
+const DESCRIPTION_PHRASE_RANKING_BONUS: u64 = 10_000;
+const DESCRIPTION_ABBREVIATION_RANKING_BONUS: u64 = 25_000;
+const RANKING_GAP_THRESHOLD: u64 = 50_000;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Repository {
@@ -275,24 +281,24 @@ fn ranking_score(repo: &Repository, query: &str) -> u64 {
 
     // Exact repository name
     if name == query {
-        score += 100_000;
+        score += EXACT_NAME_RANKING_BONUS;
     } else if name.contains(&query) {
-        score += 50_000;
+        score += CONTAINS_NAME_RANKING_BONUS;
     }
 
     // Abbreviation match
     if abbreviation_name_matches(&query, &name) {
-        score += 75_000;
+        score += ABBREVIATION_RANKING_BONUS;
     }
 
     // Description phrase
     if description.contains(&query) {
-        score += 10_000;
+        score += DESCRIPTION_PHRASE_RANKING_BONUS;
     }
 
     // Abbreviation in description
     if abbreviation_matches(&query, &description) {
-        score += 25_000;
+        score += DESCRIPTION_ABBREVIATION_RANKING_BONUS;
     }
 
     score
@@ -376,7 +382,7 @@ pub fn resolve_repository<'a>(
             .3
             .saturating_sub(scored.get(1).map(|result| result.3).unwrap_or(0));
 
-        if best.1 > second_score || ranking_gap >= 50_000 {
+        if best.1 > second_score || ranking_gap >= RANKING_GAP_THRESHOLD {
             return Some(MatchResult {
                 repository: best.0,
                 score: best.1,
