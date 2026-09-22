@@ -344,3 +344,29 @@ fn fuzzy_match_returns_actual_similarity_score() {
     assert_eq!(result.reason, MatchReason::Fuzzy);
     assert!(result.score > 600);
 }
+
+#[test]
+fn ambiguous_prefix_matches_are_rejected() {
+    let repositories = vec![
+        Repository {
+            name: "rust-cli".to_string(),
+            full_name: "example/rust-cli".to_string(),
+            description: None,
+            stargazers_count: 100,
+            forks_count: 10,
+            open_issues_count: 5,
+        },
+        Repository {
+            name: "rust-app".to_string(),
+            full_name: "example/rust-app".to_string(),
+            description: None,
+            stargazers_count: 100,
+            forks_count: 10,
+            open_issues_count: 5,
+        },
+    ];
+
+    let result = resolve_repository(&repositories, "rust");
+
+    assert!(result.is_none());
+}
