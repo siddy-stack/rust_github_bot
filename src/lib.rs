@@ -1,3 +1,6 @@
+pub mod api;
+
+use reqwest::header::USER_AGENT;
 use serde::Deserialize;
 
 const CONFIDENCE_EXACT_REPOSITORY: u32 = 99;
@@ -30,6 +33,50 @@ const ABBREVIATION_RANKING_BONUS: u64 = 75_000;
 const DESCRIPTION_PHRASE_RANKING_BONUS: u64 = 10_000;
 const DESCRIPTION_ABBREVIATION_RANKING_BONUS: u64 = 25_000;
 const RANKING_GAP_THRESHOLD: u64 = 50_000;
+const EXACT_MATCH_RANKING_GAP_THRESHOLD: u64 = 10_000;
+
+#[derive(Debug, Deserialize)]
+struct SearchResponse {
+    items: Vec<Repository>,
+}
+
+pub async fn search_repositories(
+    client: &reqwest::Client,
+    query: &str,
+) -> Result<Vec<Repository>, Box<dyn std::error::Error>> {
+    let queries = expand_query(query);
+    let mut repositories = std::collections::HashMap::new();
+
+    for search_query in queries {
+        let response = client
+            .get("https://api.github.com/search/repositories")
+            .query(&[("q", search_query.as_str()), ("per_page", "10")])
+            .header(USER_AGENT, "rust-github-bot")
+            .header("Accept", "application/vnd.github+json")
+            .header("X-GitHub-Api-Version", "2022-11-28")
+            .send()
+            .await?;
+
+        let status = response.status();
+
+        if !status.is_success() {
+            let body = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unable to read response body".to_string());
+
+            return Err(format!("GitHub API returned {}: {}", status, body).into());
+        }
+
+        let response: SearchResponse = response.json().await?;
+
+        for repo in response.items {
+            repositories.entry(repo.full_name.clone()).or_insert(repo);
+        }
+    }
+
+    Ok(repositories.into_values().collect())
+}
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Repository {
@@ -374,16 +421,20 @@ pub fn resolve_repository<'a>(
     // --------------------------------------------------------
     // Exact matches
     // --------------------------------------------------------
+    if best.1 >= EXACT_MATCH_THRESHOLD {
+        let ranking_gap = best
+            .3
+            .saturating_sub(scored.get(1).map(|result| result.3).unwrap_or(0));
 
-    if best.1 >= EXACT_MATCH_THRESHOLD && best.1 > second_score {
-        return Some(MatchResult {
-            repository: best.0,
-            score: best.1,
-            confidence,
-            reason: best.2,
-        });
+        if best.1 > second_score || ranking_gap >= EXACT_MATCH_RANKING_GAP_THRESHOLD {
+            return Some(MatchResult {
+                repository: best.0,
+                score: best.1,
+                confidence,
+                reason: best.2,
+            });
+        }
     }
-
     // --------------------------------------------------------
     // Strong semantic matches
     // --------------------------------------------------------

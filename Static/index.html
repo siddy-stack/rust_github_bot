@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>GitHub Repository Resolver</title>
+
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: Arial, sans-serif;
+        background: #0f172a;
+        color: #e2e8f0;
+        display: flex;
+        justify-content: center;
+        padding: 60px 24px;
+      }
+
+      .container {
+        width: 100%;
+        max-width: 760px;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 30px;
+      }
+
+      .subtitle {
+        color: #94a3b8;
+        margin-bottom: 28px;
+      }
+
+      .search-box {
+        display: flex;
+        gap: 10px;
+      }
+
+      input {
+        flex: 1;
+        min-width: 0;
+        padding: 14px 16px;
+        border-radius: 8px;
+        border: 1px solid #334155;
+        background: #1e293b;
+        color: #f8fafc;
+        font-size: 16px;
+        outline: none;
+      }
+
+      input:focus {
+        border-color: #64748b;
+      }
+
+      button {
+        padding: 14px 22px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        background: #f1f5f9;
+        color: #0f172a;
+        font-size: 16px;
+        font-weight: 600;
+        transition: opacity 0.15s ease;
+      }
+
+      button:hover:not(:disabled) {
+        background: #e2e8f0;
+      }
+
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.6;
+      }
+
+      .result {
+        margin-top: 24px;
+        padding: 24px;
+        border-radius: 12px;
+        background: #1e293b;
+        border: 1px solid #334155;
+      }
+
+      .repository-name {
+        margin: 0;
+        font-size: 24px;
+      }
+
+      .repository-link {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .repository-link:hover {
+        text-decoration: underline;
+      }
+
+      .full-name {
+        margin-top: 6px;
+        color: #94a3b8;
+        font-size: 14px;
+      }
+
+      .github-link {
+        display: inline-block;
+        margin-top: 18px;
+        color: #93c5fd;
+        text-decoration: none;
+        font-weight: 600;
+      }
+
+      .github-link:hover {
+        text-decoration: underline;
+      }
+
+      .description {
+        margin-top: 18px;
+        line-height: 1.6;
+        color: #cbd5e1;
+      }
+
+      .stats {
+        display: flex;
+        gap: 24px;
+        flex-wrap: wrap;
+        margin-top: 20px;
+        color: #cbd5e1;
+      }
+
+      .match-info {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+        margin-top: 24px;
+        padding-top: 20px;
+        border-top: 1px solid #334155;
+      }
+
+      .info-card {
+        padding: 14px;
+        border-radius: 8px;
+        background: #0f172a;
+      }
+
+      .info-label {
+        display: block;
+        font-size: 12px;
+        color: #94a3b8;
+        margin-bottom: 6px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      .info-value {
+        font-weight: 600;
+      }
+
+      .loading {
+        margin-top: 20px;
+        color: #94a3b8;
+      }
+
+      .error {
+        margin-top: 20px;
+        padding: 16px;
+        border-radius: 8px;
+      }
+
+      .error-title {
+        font-weight: 700;
+        margin-bottom: 6px;
+      }
+
+      .error-message {
+        color: #fecaca;
+      }
+
+      .error-not-found {
+        background: #3f1d1d;
+      }
+
+      .error-bad-request {
+        background: #3f351d;
+      }
+
+      .error-server {
+        background: #3f1d1d;
+      }
+
+      @media (max-width: 650px) {
+        .search-box {
+          flex-direction: column;
+        }
+
+        button {
+          width: 100%;
+        }
+
+        .match-info {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="container">
+      <h1>GitHub Repository Resolver</h1>
+
+      <div class="subtitle">
+        Search GitHub repositories using intelligent matching.
+      </div>
+
+      <div class="search-box">
+        <input
+          id="searchInput"
+          type="text"
+          placeholder="Try pytest, pyest, vs code..."
+        />
+
+        <button id="searchButton" type="button">Search</button>
+      </div>
+
+      <div id="output"></div>
+    </div>
+
+    <script>
+      const searchInput = document.getElementById("searchInput");
+      const searchButton = document.getElementById("searchButton");
+      const output = document.getElementById("output");
+
+      function clearOutput() {
+        output.replaceChildren();
+      }
+
+      function showLoading() {
+        clearOutput();
+
+        const loading = document.createElement("div");
+        loading.className = "loading";
+        loading.textContent = "Searching GitHub...";
+
+        output.appendChild(loading);
+
+        searchButton.disabled = true;
+        searchButton.textContent = "Searching...";
+      }
+
+      function showError(status, message) {
+        clearOutput();
+
+        const error = document.createElement("div");
+        error.className = "error";
+
+        if (status === 400) {
+          error.classList.add("error-bad-request");
+
+          const title = document.createElement("div");
+          title.className = "error-title";
+          title.textContent = "Invalid search";
+
+          const text = document.createElement("div");
+          text.className = "error-message";
+          text.textContent = message || "Please enter a repository name.";
+
+          error.appendChild(title);
+          error.appendChild(text);
+        } else if (status === 404) {
+          error.classList.add("error-not-found");
+
+          const title = document.createElement("div");
+          title.className = "error-title";
+          title.textContent = "No confident match";
+
+          const text = document.createElement("div");
+          text.className = "error-message";
+          text.textContent =
+            "The resolver could not confidently identify a repository.";
+
+          error.appendChild(title);
+          error.appendChild(text);
+        } else {
+          error.classList.add("error-server");
+
+          const title = document.createElement("div");
+          title.className = "error-title";
+          title.textContent = "Search failed";
+
+          const text = document.createElement("div");
+          text.className = "error-message";
+          text.textContent = message || "Something went wrong.";
+
+          error.appendChild(title);
+          error.appendChild(text);
+        }
+
+        output.appendChild(error);
+      }
+
+      function createInfoCard(label, value) {
+        const card = document.createElement("div");
+        card.className = "info-card";
+
+        const labelElement = document.createElement("span");
+        labelElement.className = "info-label";
+        labelElement.textContent = label;
+
+        const valueElement = document.createElement("div");
+        valueElement.className = "info-value";
+        valueElement.textContent = value;
+
+        card.appendChild(labelElement);
+        card.appendChild(valueElement);
+
+        return card;
+      }
+
+      function showResult(result) {
+        clearOutput();
+
+        const card = document.createElement("div");
+        card.className = "result";
+
+        const title = document.createElement("h2");
+        title.className = "repository-name";
+
+        const repositoryLink = document.createElement("a");
+        repositoryLink.className = "repository-link";
+        repositoryLink.href = `https://github.com/${result.full_name}`;
+        repositoryLink.target = "_blank";
+        repositoryLink.rel = "noopener noreferrer";
+        repositoryLink.textContent = result.name;
+
+        title.appendChild(repositoryLink);
+
+        const fullName = document.createElement("div");
+        fullName.className = "full-name";
+        fullName.textContent = result.full_name;
+
+        const githubLink = document.createElement("a");
+        githubLink.className = "github-link";
+        githubLink.href = `https://github.com/${result.full_name}`;
+        githubLink.target = "_blank";
+        githubLink.rel = "noopener noreferrer";
+        githubLink.textContent = "View on GitHub →";
+
+        const description = document.createElement("div");
+        description.className = "description";
+        description.textContent =
+          result.description || "No description available.";
+
+        const stats = document.createElement("div");
+        stats.className = "stats";
+
+        const stars = document.createElement("span");
+        stars.textContent = `⭐ ${result.stars.toLocaleString()}`;
+
+        const forks = document.createElement("span");
+        forks.textContent = `🍴 ${result.forks.toLocaleString()}`;
+
+        const issues = document.createElement("span");
+        issues.textContent = `Issues: ${result.open_issues.toLocaleString()}`;
+
+        stats.appendChild(stars);
+        stats.appendChild(forks);
+        stats.appendChild(issues);
+
+        const matchInfo = document.createElement("div");
+        matchInfo.className = "match-info";
+
+        const reasonCard = createInfoCard("Match", result.reason);
+
+        const scoreCard = createInfoCard("Score", result.score);
+
+        const confidenceCard = createInfoCard(
+          "Confidence",
+          `${result.confidence}%`,
+        );
+
+        matchInfo.appendChild(reasonCard);
+        matchInfo.appendChild(scoreCard);
+        matchInfo.appendChild(confidenceCard);
+
+        card.appendChild(title);
+        card.appendChild(fullName);
+        card.appendChild(githubLink);
+        card.appendChild(description);
+        card.appendChild(stats);
+        card.appendChild(matchInfo);
+
+        output.appendChild(card);
+      }
+
+      async function searchRepository() {
+        const query = searchInput.value.trim();
+
+        if (!query) {
+          showError(400, "Please enter a repository name.");
+          return;
+        }
+
+        showLoading();
+
+        try {
+          const response = await fetch(
+            `/api/search?q=${encodeURIComponent(query)}`,
+          );
+
+          if (!response.ok) {
+            const message = await response.text();
+
+            showError(response.status, message);
+
+            return;
+          }
+
+          const result = await response.json();
+
+          showResult(result);
+        } catch (error) {
+          showError(500, "Could not connect to the repository resolver.");
+        } finally {
+          searchButton.disabled = false;
+          searchButton.textContent = "Search";
+        }
+      }
+
+      searchButton.addEventListener("click", searchRepository);
+
+      searchInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          searchRepository();
+        }
+      });
+    </script>
+  </body>
+</html>

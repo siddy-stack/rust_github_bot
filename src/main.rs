@@ -1,39 +1,7 @@
 use reqwest::header::USER_AGENT;
-use serde::Deserialize;
 use std::env;
 
 use rust_bot::Repository;
-
-#[derive(Debug, Deserialize)]
-struct SearchResponse {
-    items: Vec<Repository>,
-}
-
-async fn search_repositories(
-    client: &reqwest::Client,
-    query: &str,
-) -> Result<Vec<Repository>, Box<dyn std::error::Error>> {
-    let queries = rust_bot::expand_query(query);
-
-    let mut repositories = std::collections::HashMap::new();
-
-    for search_query in queries {
-        let response: SearchResponse = client
-            .get("https://api.github.com/search/repositories")
-            .query(&[("q", search_query.as_str()), ("per_page", "10")])
-            .header(USER_AGENT, "rust-github-bot")
-            .send()
-            .await?
-            .json()
-            .await?;
-
-        for repo in response.items {
-            repositories.entry(repo.full_name.clone()).or_insert(repo);
-        }
-    }
-
-    Ok(repositories.into_values().collect())
-}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -45,7 +13,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let repository = &args[1];
-
     let client = reqwest::Client::new();
 
     // Direct owner/repository lookup
@@ -77,7 +44,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Search GitHub
-    let repositories = search_repositories(&client, repository).await?;
+    let repositories = rust_bot::search_repositories(&client, repository).await?;
 
     if repositories.is_empty() {
         println!("No repositories found for '{}'.", repository);
@@ -121,7 +88,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .iter()
                 .map(|repo| {
                     let (score, reason) = rust_bot::score_repository(repo, repository);
-
                     (repo, score, reason)
                 })
                 .filter(|(_, score, _)| *score > 0)
