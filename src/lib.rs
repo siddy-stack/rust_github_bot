@@ -11,7 +11,6 @@ const CONFIDENCE_PARTIAL_TOKEN: u32 = 45;
 const CONFIDENCE_FUZZY: u32 = 35;
 const CONFIDENCE_WEAK: u32 = 20;
 const CONFIDENCE_UNIQUENESS_BONUS: f64 = 5.0;
-
 const EXACT_REPOSITORY_SCORE: u32 = 5000;
 const EXACT_NAME_SCORE: u32 = 4000;
 const MULTIWORD_NAME_SCORE: u32 = 3000;
@@ -42,7 +41,7 @@ pub struct Repository {
     pub open_issues_count: u32,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MatchReason {
     ExactRepository,
     ExactName,

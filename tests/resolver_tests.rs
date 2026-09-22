@@ -326,3 +326,21 @@ fn arbitrary_product_alias_should_resolve() {
 
     assert!(result.is_some());
 }
+
+#[test]
+fn fuzzy_match_returns_actual_similarity_score() {
+    let repositories = vec![Repository {
+        name: "pytest".to_string(),
+        full_name: "pytest-dev/pytest".to_string(),
+        description: None,
+        stargazers_count: 100,
+        forks_count: 10,
+        open_issues_count: 5,
+    }];
+
+    let result = resolve_repository(&repositories, "pyest").unwrap();
+
+    assert_eq!(result.repository.name, "pytest");
+    assert_eq!(result.reason, MatchReason::Fuzzy);
+    assert!(result.score > 600);
+}
