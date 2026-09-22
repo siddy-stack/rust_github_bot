@@ -81,7 +81,7 @@ async fn search(
 }
 
 pub async fn home() -> Html<&'static str> {
-    Html(include_str!("../static/index.html"))
+    Html(include_str!("../Static/index.html"))
 }
 
 pub fn create_router(state: Arc<AppState>) -> Router {
